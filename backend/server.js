@@ -26,10 +26,27 @@ const app = express();
 connectDB();
 
 // ==================== MIDDLEWARE ====================
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+
+// Allow requests from both local development and Vercel frontend
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://smart-traffic-system-lime.vercel.app'
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -40,6 +57,7 @@ app.use('/api/violations', violationRoutes);
 app.use('/api/citizen', citizenRoutes);
 app.use('/api/stats', statsRoutes);
 
+// Test route
 app.get('/', (req, res) => {
   res.json({
     message: 'Smart Traffic Violation Management System API',
@@ -56,7 +74,10 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     message: 'Server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+    error:
+      process.env.NODE_ENV === 'development'
+        ? err.message
+        : 'Internal Server Error'
   });
 });
 
