@@ -17,7 +17,13 @@ dotenv.config();
 const User = require('../models/User');
 const Violation = require('../models/Violation');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart_traffic_db';
+// ✅ Correct environment variable
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI not found in environment variables');
+  process.exit(1);
+}
 
 const sampleViolations = [
   { vehicleNumber: 'MH12AB1234', violationType: 'Signal Jump', date: new Date('2024-12-01'), time: '09:30', location: 'MG Road Junction, Mumbai', fineAmount: 1000, status: 'Paid' },
@@ -34,53 +40,46 @@ const sampleViolations = [
 
 async function seedDatabase() {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    await mongoose.connect(MONGO_URI);
+    console.log('✅ Connected to MongoDB Atlas');
 
-    // Clear existing data
     await User.deleteMany({});
     await Violation.deleteMany({});
-    console.log('🗑️  Cleared existing data');
+    console.log('🗑️ Cleared existing data');
 
-    // Create admin user
     const admin = await User.create({
       name: 'Admin User',
       email: 'admin@traffic.gov',
       password: 'admin123',
       role: 'admin',
-      badgeNumber: 'ADMIN001'
+      badgeNumber: 'ADMIN001',
     });
-    console.log('👤 Admin created: admin@traffic.gov / admin123');
 
-    // Create police officer
+    console.log('👤 Admin created');
+
     const officer = await User.create({
       name: 'Officer Sharma',
       email: 'officer@traffic.gov',
       password: 'officer123',
       role: 'police',
-      badgeNumber: 'MUM2024001'
+      badgeNumber: 'MUM2024001',
     });
-    console.log('👮 Officer created: officer@traffic.gov / officer123');
 
-    // Create violations linked to officer
+    console.log('👮 Officer created');
+
     const violationsWithOfficer = sampleViolations.map(v => ({
       ...v,
       recordedBy: officer._id,
-      officerName: officer.name
+      officerName: officer.name,
     }));
 
     await Violation.insertMany(violationsWithOfficer);
-    console.log(`📋 Created ${sampleViolations.length} sample violations`);
+    console.log(`📋 Inserted ${sampleViolations.length} violations`);
 
-    console.log('\n✅ Database seeded successfully!');
-    console.log('\n📝 Login Credentials:');
-    console.log('   Admin   → Email: admin@traffic.gov   | Password: admin123');
-    console.log('   Officer → Email: officer@traffic.gov | Password: officer123');
-    console.log('\n🔍 Test Vehicle Numbers: MH12AB1234, DL5SAB1234, KA03MN4567');
-
+    console.log('✅ Database seeded successfully');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Seed error:', error);
+    console.error('❌ Seeder failed:', error.message);
     process.exit(1);
   }
 }
