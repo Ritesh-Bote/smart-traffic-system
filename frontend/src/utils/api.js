@@ -4,16 +4,22 @@
  * Central axios instance for the Smart Traffic Violation Management System.
  *
  * Features:
- * - Base URL set to deployed backend (Render)
- * - Automatically attaches JWT token to every request
- * - Handles 401 (unauthorized) errors globally
+ * - Automatically selects correct backend URL
+ * - Adds JWT token to every request
+ * - Handles authentication errors globally
  */
 
 import axios from "axios";
 
-// Create axios instance with deployed backend URL
+// Detect environment
+const BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://smart-traffic-backend-chb3.onrender.com/api"
+    : "http://localhost:5000/api";
+
+// Create axios instance
 const api = axios.create({
-  baseURL: "https://smart-traffic-backend-chb3.onrender.com/api",
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -21,15 +27,16 @@ const api = axios.create({
 
 /**
  * Request Interceptor
- * Runs before EVERY API request.
- * Attaches the JWT token from localStorage to the Authorization header.
+ * Adds JWT token (if available)
  */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("traffic_token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -37,14 +44,12 @@ api.interceptors.request.use(
 
 /**
  * Response Interceptor
- * Runs after every API response.
- * If we get a 401 (unauthorized), redirect to login.
+ * Handles authentication errors globally
  */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    if (error.response && error.response.status === 401) {
       localStorage.removeItem("traffic_token");
       localStorage.removeItem("traffic_user");
 
@@ -52,6 +57,7 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     }
+
     return Promise.reject(error);
   }
 );
